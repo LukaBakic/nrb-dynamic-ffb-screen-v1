@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>nrbOS FFB Yoke Diagnostic Display</title>
+  <style>
+    :root {
+      --bg: #05070b;
+      --panel: #0b1018;
+      --accent: #00e5ff;
+      --accent-soft: #00bcd4;
+      --warn: #ffb300;
+      --error: #ff5252;
+      --ok: #00e676;
+      --text-main: #e0f7fa;
+      --text-dim: #90a4ae;
+      --border: #263238;
+      --carbon1: #111318;
+      --carbon2: #1b1f26;
+      --button-bg: #151b24;
+      --button-border: #37474f;
+      --button-hover: #1f2933;
+      --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: radial-gradient(circle at top, #111827 0%, #020309 55%, #000000 100%);
+      color: var(--text-main);
+      font-family: var(--font-main);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .yoke-wrapper {
+      width: 980px;
+      max-width: 98vw;
+      padding: 24px;
+      border-radius: 18px;
+      background:
+        linear-gradient(135deg, rgba(255,255,255,0.04), rgba(0,0,0,0.4)),
+        repeating-linear-gradient(
+          135deg,
+          var(--carbon1) 0px,
+          var(--carbon1) 4px,
+          var(--carbon2) 4px,
+          var(--carbon2) 8px
+        );
+      box-shadow:
+        0 0 40px rgba(0, 229, 255, 0.25),
+        0 0 120px rgba(0, 0, 0, 0.9);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .yoke-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 16px;
+    }
+
+    .yoke-title {
+      font-size: 1.4rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .yoke-subtitle {
+      font-size: 0.9rem;
+      color: var(--text-dim);
+    }
+
+    .yoke-center {
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr 0.9fr;
+      gap: 16px;
+      margin-top: 8px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      box-shadow: 0 0 18px rgba(0,0,0,0.7);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .panel::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at top left, rgba(0,229,255,0.12), transparent 55%);
+      opacity: 0.7;
+      pointer-events: none;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .panel-title {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent-soft);
+    }
+
+    .panel-tag {
+      font-size: 0.75rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--text-dim);
+    }
+
+    .kv-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin: 4px 0;
+      font-size: 0.85rem;
+    }
+
+    .kv-label {
+      color: var(--text-dim);
+    }
+
+    .kv-value {
+      font-weight: 500;
+      color: var(--text-main);
+    }
+
+    .kv-value.ok {
+      color: var(--ok);
+    }
+
+    .kv-value.warn {
+      color: var(--warn);
+    }
+
+    .kv-value.error {
+      color: var(--error);
+    }
+
+    .status-chips {
+      display: flex;
+      gap: 6px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      font-size: 0.75rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .chip-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .chip.engaged .chip-dot {
+      background: var(--ok);
+    }
+
+    .chip.limited .chip-dot {
+      background: var(--warn);
+    }
+
+    .chip.fault .chip-dot {
+      background: var(--error);
+    }
+
+    .chip.engaged {
+      color: var(--ok);
+      border-color: rgba(0,230,118,0.4);
+    }
+
+    .chip.limited {
+      color: var(--warn);
+      border-color: rgba(255,179,0,0.4);
+    }
+
+    .chip.fault {
+      color: var(--error);
+      border-color: rgba(255,82,82,0.4);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      flex: 1;
+      min-width: 120px;
+      font-size: 0.8rem;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--button-border);
+      background: var(--button-bg);
+      color: var(--text-main);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s ease, border-color 0.15s ease, transform 0.08s ease;
+    }
+
+    .btn:hover {
+      background: var(--button-hover);
+      border-color: var(--accent-soft);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+      opacity: 0.9;
+    }
+
+    .btn-primary {
+      border-color: var(--accent-soft);
+      color: var(--accent);
+    }
+
+    .btn-danger {
+      border-color: var(--error);
+      color: var(--error);
+    }
+
+    .btn-icon {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid currentColor;
+    }
+
+    /* FFB telemetry visuals */
+
+    .telemetry-layout {
+      display: grid;
+      grid-template-columns: 1.1fr 1.1fr;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .yoke-visual {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 8px;
+      background: radial-gradient(circle at top, #111827 0%, #020309 70%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .yoke-visual-inner {
+      position: relative;
+      width: 100%;
+      height: 120px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .yoke-body {
+      width: 120px;
+      height: 60px;
+      border-radius: 999px;
+      background:
+        linear-gradient(135deg, #1f2933, #0b1018);
+      border: 1px solid #37474f;
+      position: relative;
+      box-shadow:
+        0 0 18px rgba(0,0,0,0.8),
+        0 0 24px rgba(0,229,255,0.18);
+    }
+
+    .yoke-arm {
+      position: absolute;
+      top: 50%;
+      width: 40px;
+      height: 18px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #263238, #111827);
+      border: 1px solid #455a64;
+      transform: translateY(-50%);
+    }
+
+    .yoke-arm.left {
+      left: -32px;
+    }
+
+    .yoke-arm.right {
+      right: -32px;
+    }
+
+    .yoke-axis-indicator {
+      position: absolute;
+      width: 2px;
+      height: 80px;
+      background: rgba(144,164,174,0.4);
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+
+    .yoke-dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(0,229,255,0.7);
+      transition: transform 0.08s linear;
+    }
+
+    .arrow-label {
+      position: absolute;
+      font-size: 0.75rem;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.7);
+      border: 1px solid rgba(255,255,255,0.08);
+      white-space: nowrap;
+    }
+
+    .arrow-label.pitch {
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--accent);
+    }
+
+    .arrow-label.roll {
+      bottom: 8px;
+      right: 8px;
+      color: var(--warn);
+    }
+
+    .telemetry-kv {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 8px;
+      background: #05070b;
+    }
+
+    .telemetry-kv .kv-row {
+      margin: 3px 0;
+    }
+
+    .telemetry-kv .kv-value {
+      font-weight: 500;
+    }
+
+    .telemetry-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 8px;
+      font-size: 0.8rem;
+    }
+
+    .sync-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--ok);
+    }
+
+    .sync-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--ok);
+      box-shadow: 0 0 10px rgba(0,230,118,0.7);
+    }
+
+    .mode-pill {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--accent-soft);
+    }
+
+    /* Right panel: centering + emergency */
+
+    .right-panel-section {
+      margin-top: 6px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      padding: 8px;
+      background: #05070b;
+    }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .slider-row label {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      white-space: nowrap;
+    }
+
+    input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 4px;
+      border-radius: 999px;
+      background: #263238;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 10px rgba(0,229,255,0.7);
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 2px solid #ffffff;
+      box-shadow: 0 0 10px rgba(0,229,255,0.7);
+      cursor: pointer;
+    }
+
+    .centering-value {
+      font-size: 0.8rem;
+      color: var(--accent);
+    }
+
+    .emerg-status {
+      margin-top: 6px;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .emerg-led {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #37474f;
+      box-shadow: none;
+      transition: background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .emerg-led.active {
+      background: var(--error);
+      box-shadow: 0 0 12px rgba(255,82,82,0.8);
+    }
+
+    .emerg-text {
+      color: var(--error);
+    }
+
+    .emerg-text.inactive {
+      color: var(--text-dim);
+    }
+
+    .footer-note {
+      margin-top: 10px;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      text-align: right;
+    }
+  </style>
+</head>
+<body>
+  <div class="yoke-wrapper">
+    <div class="yoke-header">
+      <div>
+        <div class="yoke-title">nrbOS FFB SYSTEM</div>
+        <div class="yoke-subtitle">Navara • ReBus • LukaOS — Live Yoke Telemetry & Motor Diagnostics</div>
+      </div>
+      <div class="panel-tag">DIAGNOSTIC DISPLAY v1.0</div>
+    </div>
+
+    <div class="yoke-center">
+      <!-- MOTOR STATUS PANEL -->
+      <div class="panel" id="motor-panel">
+        <div class="panel-header">
+          <div class="panel-title">MOTOR STATUS</div>
+          <div class="panel-tag">FFB ACTUATORS</div>
+        </div>
+
+        <div class="kv-row">
+          <span class="kv-label">Motor 1 Torque</span>
+          <span class="kv-value" id="motor1Torque">6.8 Nm</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Motor 2 Torque</span>
+          <span class="kv-value" id="motor2Torque">6.9 Nm</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Temperature</span>
+          <span class="kv-value" id="motorTemp">42°C</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Voltage</span>
+          <span class="kv-value" id="motorVolt">24.1 V</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Current Draw</span>
+          <span class="kv-value" id="motorCurrent">3.2 A</span>
+        </div>
+        <div class="kv-row">
+          <span class="kv-label">Cooling Fan RPM</span>
+          <span class="kv-value" id="motorFan">2800 RPM</span>
+        </div>
+
+        <div class="status-chips">
+          <div class="chip engaged" id="chipEngaged">
+            <span class="chip-dot"></span>
+            ENGAGED
+          </div>
+          <div class="chip limited" id="chipLimited">
+            <span class="chip-dot"></span>
+            LIMITED
+          </div>
+          <div class="chip fault" id="chipFault">
+            <span class="chip-dot"></span>
+            FAULT
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-primary" id="btnTestMotors">
+            <span class="btn-icon"></span>
+            TEST MOTORS
+          </button>
+          <button class="btn btn-danger" id="btnDisengageFFB">
+            <span class="btn-icon"></span>
+            DISENGAGE FFB
+          </button>
+        </div>
+      </div>
+
+      <!-- LIVE FFB TELEMETRY PANEL -->
+      <div class="panel" id="telemetry-panel">
+        <div class="panel-header">
+          <div class="panel-title">LIVE FFB TELEMETRY</div>
+          <div class="panel-tag">YOKE POSITION</div>
+        </div>
+
+        <div class="telemetry-layout">
+          <div class="yoke-visual">
+            <div class="yoke-visual-inner">
+              <div class="yoke-axis-indicator"></div>
+              <div class="yoke-body">
+                <div class="yoke-arm left"></div>
+                <div class="yoke-arm right"></div>
+              </div>
+              <div class="yoke-dot" id="yokeDot"></div>
+              <div class="arrow-label pitch" id="pitchLabel">Pitch: +3.2°</div>
+              <div class="arrow-label roll" id="rollLabel">Roll: -2.1°</div>
+            </div>
+          </div>
+
+          <div class="telemetry-kv">
+            <div class="kv-row">
+              <span class="kv-label">FFB Torque</span>
+              <span class="kv-value" id="ffbTorque">5.7 Nm</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">Pilot Force</span>
+              <span class="kv-value" id="pilotForce">4.9 Nm</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">Flight Mode</span>
+              <span class="kv-value" id="flightMode">TAKEOFF</span>
+            </div>
+            <div class="kv-row">
+              <span class="kv-label">Envelope</span>
+              <span class="kv-value ok" id="envelopeStatus">NORMAL</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="telemetry-footer">
+          <div class="sync-indicator">
+            <span class="sync-dot"></span>
+            <span id="syncText">SYNC: 100%</span>
+          </div>
+          <div class="mode-pill" id="modePill">FBW • FFB ACTIVE</div>
+        </div>
+      </div>
+
+      <!-- CONTROL / EMERGENCY / CENTERING PANEL -->
+      <div class="panel" id="control-panel">
+        <div class="panel-header">
+          <div class="panel-title">CONTROL & SAFETY</div>
+          <div class="panel-tag">nrbOS LAWS</div>
+        </div>
+
+        <div class="right-panel-section">
+          <div class="kv-row">
+            <span class="kv-label">FFB System</span>
+            <span class="kv-value ok" id="ffbSystemState">ONLINE</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Torque Limit</span>
+            <span class="kv-value" id="torqueLimit">7.00 Nm</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Phase Law</span>
+            <span class="kv-value" id="phaseLaw">TAKEOFF PROFILE</span>
+          </div>
+
+          <div class="slider-row">
+            <label for="centeringSlider">Centering Force</label>
+            <input type="range" id="centeringSlider" min="0.8" max="2.0" step="0.1" value="1.5" />
+            <span class="centering-value" id="centeringValue">1.5 Nm</span>
+          </div>
+
+          <div class="emerg-status">
+            <div class="emerg-led" id="emergLed"></div>
+            <span class="emerg-text inactive" id="emergText">EMERG FFB DISC: INACTIVE</span>
+          </div>
+        </div>
+
+        <div class="right-panel-section">
+          <div class="kv-row">
+            <span class="kv-label">Pilot Override</span>
+            <span class="kv-value" id="pilotOverride">AVAILABLE</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Soft‑Feel Fallback</span>
+            <span class="kv-value" id="softFeel">ARMED</span>
+          </div>
+          <div class="kv-row">
+            <span class="kv-label">Self‑Test Status</span>
+            <span class="kv-value ok" id="selfTest">PASSED</span>
+          </div>
+        </div>
+
+        <div class="footer-note">
+          nrbOS applies envelope protection, phase‑dependent feel, and emergency soft‑feel laws in real time.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Simple interactive simulation for GitHub demo
+
+    const motor1TorqueEl = document.getElementById("motor1Torque");
+    const motor2TorqueEl = document.getElementById("motor2Torque");
+    const motorTempEl = document.getElementById("motorTemp");
+    const motorVoltEl = document.getElementById("motorVolt");
+    const motorCurrentEl = document.getElementById("motorCurrent");
+    const motorFanEl = document.getElementById("motorFan");
+
+    const chipEngaged = document.getElementById("chipEngaged");
+    const chipLimited = document.getElementById("chipLimited");
+    const chipFault = document.getElementById("chipFault");
+
+    const yokeDot = document.getElementById("yokeDot");
+    const pitchLabel = document.getElementById("pitchLabel");
+    const rollLabel = document.getElementById("rollLabel");
+
+    const ffbTorqueEl = document.getElementById("ffbTorque");
+    const pilotForceEl = document.getElementById("pilotForce");
+    const flightModeEl = document.getElementById("flightMode");
+    const envelopeStatusEl = document.getElementById("envelopeStatus");
+    const syncTextEl = document.getElementById("syncText");
+    const modePillEl = document.getElementById("modePill");
+
+    const ffbSystemStateEl = document.getElementById("ffbSystemState");
+    const torqueLimitEl = document.getElementById("torqueLimit");
+    const phaseLawEl = document.getElementById("phaseLaw");
+    const centeringSlider = document.getElementById("centeringSlider");
+    const centeringValueEl = document.getElementById("centeringValue");
+    const emergLedEl = document.getElementById("emergLed");
+    const emergTextEl = document.getElementById("emergText");
+    const pilotOverrideEl = document.getElementById("pilotOverride");
+    const softFeelEl = document.getElementById("softFeel");
+    const selfTestEl = document.getElementById("selfTest");
+
+    const btnTestMotors = document.getElementById("btnTestMotors");
+    const btnDisengageFFB = document.getElementById("btnDisengageFFB");
+
+    let emergActive = false;
+    let ffbActive = true;
+    let t = 0;
+
+    function randRange(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function updateTelemetry() {
+      t += 0.04;
+
+      // Simulated pitch/roll oscillation
+      const pitch = Math.sin(t * 0.7) * 4.0;   // ±4°
+      const roll = Math.cos(t * 0.5) * 3.0;    // ±3°
+
+      const pitchStr = (pitch >= 0 ? "+" : "") + pitch.toFixed(1) + "°";
+      const rollStr = (roll >= 0 ? "+" : "") + roll.toFixed(1) + "°";
+
+      pitchLabel.textContent = "Pitch: " + pitchStr;
+      rollLabel.textContent = "Roll: " + rollStr;
+
+      // Move yoke dot within visual area
+      const maxOffsetX = 32;
+      const maxOffsetY = 18;
+      const x = (roll / 3.0) * maxOffsetX;
+      const y = (pitch / 4.0) * -maxOffsetY;
+
+      yokeDot.style.transform = `translate(${x}px, ${y}px)`;
+
+      // FFB torque & pilot force
+      const baseTorque = ffbActive ? 5.0 : 1.5;
+      const torque = baseTorque + Math.sin(t * 0.9) * 0.7;
+      const pilotForce = baseTorque - Math.cos(t * 0.6) * 0.5;
+
+      ffbTorqueEl.textContent = torque.toFixed(1) + " Nm";
+      pilotForceEl.textContent = pilotForce.toFixed(1) + " Nm";
+
+      // Envelope status
+      const envelopeStates = ["NORMAL", "TURBULENCE", "STALL WARN", "OVERSPEED WARN"];
+      let envelopeIndex = 0;
+
+      if (Math.abs(pitch) > 3.5 || Math.abs(roll) > 2.5) {
+        envelopeIndex = 1; // turbulence
+      }
+      if (Math.abs(pitch) > 3.8 && torque > 5.5) {
+        envelopeIndex = 2; // stall warn
+      }
+
+      const envelope = envelopeStates[envelopeIndex];
+      envelopeStatusEl.textContent = envelope;
+      envelopeStatusEl.classList.remove("ok", "warn", "error");
+
+      if (envelope === "NORMAL") {
+        envelopeStatusEl.classList.add("ok");
+      } else if (envelope === "TURBULENCE") {
+        envelopeStatusEl.classList.add("warn");
+      } else {
+        envelopeStatusEl.classList.add("error");
+      }
+
+      // Sync
+      const sync = ffbActive ? 100 - Math.abs(Math.sin(t * 0.4)) * 2 : 98;
+      syncTextEl.textContent = "SYNC: " + sync.toFixed(0) + "%";
+
+      // Motor telemetry
+      const m1 = baseTorque + Math.sin(t * 0.8) * 0.4;
+      const m2 = baseTorque + Math.cos(t * 0.7) * 0.4;
+      const temp = 40 + Math.abs(Math.sin(t * 0.3)) * 4;
+      const volt = 24.1 + Math.sin(t * 0.2) * 0.1;
+      const current = 3.0 + Math.abs(Math.sin(t * 0.5)) * 0.4;
+      const fan = 2700 + Math.abs(Math.sin(t * 0.6)) * 200;
+
+      motor1TorqueEl.textContent = m1.toFixed(1) + " Nm";
+      motor2TorqueEl.textContent = m2.toFixed(1) + " Nm";
+      motorTempEl.textContent = temp.toFixed(0) + "°C";
+      motorVoltEl.textContent = volt.toFixed(1) + " V";
+      motorCurrentEl.textContent = current.toFixed(1) + " A";
+      motorFanEl.textContent = fan.toFixed(0) + " RPM";
+
+      // Status chips
+      chipEngaged.style.opacity = ffbActive ? "1" : "0.3";
+      chipLimited.style.opacity = torque > 6.5 ? "1" : "0.3";
+      chipFault.style.opacity = emergActive ? "1" : "0.2";
+
+      // Mode pill
+      if (!ffbActive) {
+        modePillEl.textContent = "SOFT‑FEEL • CENTERING ONLY";
+      } else if (envelope === "NORMAL") {
+        modePillEl.textContent = "FBW • FFB ACTIVE";
+      } else {
+        modePillEl.textContent = "FBW • PROTECTIVE FEEL";
+      }
+
+      requestAnimationFrame(updateTelemetry);
+    }
+
+    // Centering slider
+    centeringSlider.addEventListener("input", () => {
+      const val = parseFloat(centeringSlider.value).toFixed(1);
+      centeringValueEl.textContent = val + " Nm";
+    });
+
+    // Test motors button
+    btnTestMotors.addEventListener("click", () => {
+      btnTestMotors.textContent = "RUNNING SELF‑TEST…";
+      btnTestMotors.disabled = true;
+
+      selfTestEl.textContent = "IN PROGRESS";
+      selfTestEl.classList.remove("ok");
+      selfTestEl.classList.add("warn");
+
+      setTimeout(() => {
+        selfTestEl.textContent = "PASSED";
+        selfTestEl.classList.remove("warn");
+        selfTestEl.classList.add("ok");
+        btnTestMotors.textContent = "TEST MOTORS";
+        btnTestMotors.disabled = false;
+      }, 1800);
+    });
+
+    // Disengage FFB button (emergency)
+    btnDisengageFFB.addEventListener("click", () => {
+      emergActive = !emergActive;
+      ffbActive = !emergActive;
+
+      if (emergActive) {
+        emergLedEl.classList.add("active");
+        emergTextEl.textContent = "EMERG FFB DISC: ACTIVE";
+        emergTextEl.classList.remove("inactive");
+        ffbSystemStateEl.textContent = "SOFT‑FEEL MODE";
+        ffbSystemStateEl.classList.remove("ok");
+        ffbSystemStateEl.classList.add("warn");
+        softFeelEl.textContent = "ENGAGED";
+        pilotOverrideEl.textContent = "FULL MANUAL";
+      } else {
+        emergLedEl.classList.remove("active");
+        emergTextEl.textContent = "EMERG FFB DISC: INACTIVE";
+        emergTextEl.classList.add("inactive");
+        ffbSystemStateEl.textContent = "ONLINE";
+        ffbSystemStateEl.classList.remove("warn");
+        ffbSystemStateEl.classList.add("ok");
+        softFeelEl.textContent = "ARMED";
+        pilotOverrideEl.textContent = "AVAILABLE";
+      }
+    });
+
+    // Start animation
+    requestAnimationFrame(updateTelemetry);
+  </script>
+</body>
+</html>
